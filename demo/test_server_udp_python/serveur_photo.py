@@ -33,48 +33,49 @@ s.bind((HOST, PORT))
 ## Reception
 
 upload = False
+run = True
 
-while True:
-    # Reception des paquets
-    data = s.recvfrom(BUFFER_SIZE)
 
-    if data:
-        if not upload : # Si on est pas en mode upload
+def message(data) :
+    # Decodage et affichage des message reçus
+    msg = data[0].decode('utf-8')
+    print('Reception :')
+    print('   Message : '+ msg)
+    print('   Emmeteur : ' + str(data[1]))
+    return msg
 
-            # Decodage et affichage des message reçus
-            msg = data[0].decode('utf-8')
-            print('Reception :')
-            print('   Message : '+ msg)
-            print('   Emmeteur : ' + str(data[1]))
 
-            # Reception d'une requette
-            if msg[:19] == 'file upload request' :
-                # Infos
-                id_esp = msg[26:30]
-                packet = msg[41:45]
+def requette(msg, emmeteur) :
+    # Reception d'une requette
+    if msg[:19] == 'file upload request' :
+        # Infos
+        id_esp = msg[26:30]
+        packet = msg[41:45]
 
-                print("   -> Detection d'une requete d'envoi de " + str(int(packet)) + " paquets de la part de l'ESP n°" + str(int(id_esp)))
+        print("   -> Detection d'une requete d'envoi de " + str(int(packet)) + " paquets de la part de l'ESP n°" + str(int(id_esp)))
 
-                # Reponse à la requete
-                if reponseRequete :
+        # Reponse à la requete
+        if reponseRequete :
 
-                    if reponseRequetePositive :
-                        # Reponse positive
-                        print("   <- Envoi d'une réponse positive")
-                        s.sendto(bytearray('file request accepted, id : ' + id_esp + ', packet : ' + packet, 'utf-8'), data[1])
-                        upload = True
+            if reponseRequetePositive :
+                # Reponse positive
+                print("   <- Envoi d'une réponse positive")
+                s.sendto(bytearray('file request accepted, id : ' + id_esp + ', packet : ' + packet, 'utf-8'), emmeteur)
+                return True, int(id_esp), int(packet)
 
-                    else :
-                        # Reponse negative
-                        print("   <- Envoi d'une réponse negative")
-                        s.sendto(bytearray('file request refused, id : ' + id_esp + ', packet : ' + packet, 'utf-8'), data[1])
+            else :
+                # Reponse negative
+                print("   <- Envoi d'une réponse negative")
+                s.sendto(bytearray('file request refused, id : ' + id_esp + ', packet : ' + packet, 'utf-8'), emmeteur)
+                return False, int(id_esp), int(packet)
 
-                else :
-                    # Pas de reponse
-                    print("   <- Pas d'envoi de réponse")
+        else :
+            # Pas de reponse
+            print("   <- Pas d'envoi de réponse")
+            return False, int(id_esp), int(packet)
 
-        if upload : # On est en mode upload
 
+def uploadMode(esp, packet) :
             print('Reception de données :')
 
             # Suppression de l'ancien fichier s'il existe
@@ -83,8 +84,7 @@ while True:
 
             # Ouverture d'un fichier image
             with open(nomImg, 'wb') as img :
-                while upload :
-
+                while True :
                     #Reception des paquets
                     data = s.recvfrom(BUFFER_SIZE)
                     if data :
@@ -99,19 +99,41 @@ while True:
                             id_esp = msg[18:22]
                             num_packet = msg[30:34]
 
-                            print("      -> Reception du paquet " + str(int(num_packet)+1) + "/" + str(int(packet)))
-                            # Ecriture des données
-                            img.write(data[0][43:])
-                            print('         Ecriture')
+                            if int(id_esp) == esp :
 
-                            #Envoi de la confirmation de reception
-                            s.sendto(bytearray('ACK, id : ' + id_esp + ', idP : ' + num_packet, 'utf-8'), data[1])
+                                print("      -> Reception du paquet " + str(int(num_packet)+1) + "/" + str(int(packet)))
+                                # Ecriture des données
+                                img.write(data[0][43:])
+                                print('         Ecriture')
+
+                                #Envoi de la confirmation de reception
+                                s.sendto(bytearray('ACK, id : ' + id_esp + ', idP : ' + num_packet, 'utf-8'), data[1])
+
+                                #Fin de l'upload
+                                if int(num_packet) >= int(packet) -1 :
+                                    print("      Dernier paquet")
+                                    return True
 
 
-                            #Fin de l'upload
-                            if int(num_packet) >= int(packet) -1 :
-                                print("      Dernier paquet")
-                                upload = False
+
+while run:
+    # Reception des paquets
+    data = s.recvfrom(BUFFER_SIZE)
+
+    if data:
+
+        # Decodage et affichage des message reçus
+        emmeteur = data[1]
+        msg = message(data)
+
+        upload, esp, packet = requette(msg, emmeteur)
+
+        if upload : # Si on est en mode upload
+
+            if uploadMode(esp, packet) : #On recoit les paquets et si on a réussi
+                print('Image reçue')
+            else :
+                print('Problème avec la reception')
 
 
 

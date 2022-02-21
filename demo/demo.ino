@@ -94,7 +94,7 @@ void setup(){
 
   // Format de l'image
   // Pour cette carte la qualité max est le CIF car pas de PSRAM
-  config.frame_size = FRAMESIZE_CIF;
+  config.frame_size = FRAMESIZE_XGA;
   config.jpeg_quality = 12;  //0-63 (plus petit signifie qualité plus grande)
   //nombre d'image dans le buffer (seulement 1 car pas de PSRAM)
   config.fb_count = 1;
