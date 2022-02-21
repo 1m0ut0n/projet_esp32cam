@@ -92,8 +92,11 @@ void setup(){
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
 
-  // Format de l'image
-  // Pour cette carte la qualité max est le CIF car pas de PSRAM
+  /* Format de l'image
+     Pour cette carte la qualité max est le CIF (352×288) car pas de PSRAM
+     En fait j'ai reussi à aller jusqu'au XGA (1024×768) mais je garanti pas
+     qu'il n'y ai aucun problème, la biblioteque dit qu'on ne peut aller
+     que jusqu'à CIF                                                         */
   config.frame_size = FRAMESIZE_XGA;
   config.jpeg_quality = 12;  //0-63 (plus petit signifie qualité plus grande)
   //nombre d'image dans le buffer (seulement 1 car pas de PSRAM)
