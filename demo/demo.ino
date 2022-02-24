@@ -265,11 +265,11 @@ boolean requeteServeur(unsigned int nbPacket, uint8_t buffer[BUFFER_LEN]) {
   while (true)
   {
     // Remise à zéro du buffer et mise en place de la reception
-    memset(buffer, 0, 50);
+    memset(buffer, 0, BUFFER_LEN);
     udp.parsePacket();
 
     // Lecture des paquets receptionnés
-    if (udp.read(buffer, 50) > 0)
+    if (udp.read(buffer, BUFFER_LEN) > 0)
     {
       if (!strcmp((char *)buffer,ack)) // Reponse correspondant à une reponse positive
       {
@@ -309,7 +309,7 @@ boolean envoiPaquet(unsigned int idP, unsigned int nbPacket, size_t tailleData, 
   // On se met à l'emplacement du buffer correspondant au paquet à envoyer
   fbBuf += idP * tailleData;
 
-  // Envoi du paquet avec les donnée
+  // Envoi du paquet avec les données
   if (((idP+1)*tailleData) < fbLen) { // Envoi des premiers paquets
     udp.beginPacket(udpAddress,udpPort);
     udp.printf("file upload, id : %04d, idP : %04d, data : ", ID, idP);
@@ -337,11 +337,11 @@ boolean envoiPaquet(unsigned int idP, unsigned int nbPacket, size_t tailleData, 
   while (true)
   {
     // Remise à zéro du buffer et mise en place de la reception
-    memset(buffer, 0, 50);
+    memset(buffer, 0, BUFFER_LEN);
     udp.parsePacket();
 
     // Lecture des paquets receptionnés
-    if (udp.read(buffer, 50) > 0)
+    if (udp.read(buffer, BUFFER_LEN) > 0)
     {
       if (!strcmp((char *)buffer,ack)) // Reponse correspondant à une bonne reception
       {
