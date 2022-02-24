@@ -32,8 +32,6 @@ Ici, le serveur repond à la demande d'envoi d'une image par l'ESP
 
 **Octet n°6-9 :** (*Entier non-signé de 4 octets*) Redonne la taille maximum de chaque paquet (Vérification).
 
-**Octet restants :** (*Entier non-signé de n octets*) Redonne la taille du fichier image (Vérification).
-
 > L'ESP vérifie la bonne réception de la demande par le serveur, sinon il les renvoie
 
 ### 2 : Envoi d'un paquet de données

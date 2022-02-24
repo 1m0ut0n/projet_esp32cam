@@ -1,3 +1,6 @@
+/*  - [ ] Penser à rajouter la taille du fichier image
+ *
+ */
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
@@ -9,6 +12,8 @@
 
 //-------------------------------Paramètres------------------------------------
 
+// Type de Client : Photographie des câbles (voir protocole)
+#define CLIENT_TYPE 1
 // id de l'ESP
 #define ID 99 // 4 digits max
 
@@ -19,7 +24,7 @@ const char * networkPswd = "gaspardd";
 // Adresse IP du serveur UDP :
 // either use the ip address of the server or
 // a network broadcast address;
-const char * udpAddress = "172.20.10.4";
+const char * udpAddress = "172.20.10.3";
 const int udpPort = 44444;
 
 // Est-on déjà connectés ?
@@ -50,9 +55,11 @@ WiFiUDP udp;
 // Taille max de la donnée transmise par paquet (sortie)
 #define DATA_MAX 1024
 // Taille max des paquets entrants
-#define BUFFER_LEN 64
+#define BUFFER_LEN 32
 // Temps avant timeout (en millisecondes)
 #define TIMEOUT 5000
+// Taille de l'entete lors d'un envoi de données (en octets)
+#define ENTETE_LEN 8
 
 //----------------------------------Setup--------------------------------------
 
@@ -179,7 +186,7 @@ void WiFiEvent(WiFiEvent_t event){
           break;
       case SYSTEM_EVENT_STA_DISCONNECTED:
           // Quand on se deconecte
-          Serial.println("Connection Wifi impossible, reconnection...");
+          Serial.println("Wifi introuvable, reconnection...");
           connected = false;
           break;
       default: break;
@@ -216,10 +223,9 @@ void envoiPhoto() {
 
   // Determination de la procedure d'envoi
   Serial.println("Taille image : " + String(fbLen) + " octets");
-  size_t tailleData = DATA_MAX - 43;
+  size_t tailleData = DATA_MAX - ENTETE_LEN;
   unsigned int nbPacket = fbLen / tailleData;
   if (fbLen % tailleData > 0) nbPacket++;
-  // 43 est la taille de l'entête lors de notre envoi de paquet de data
 
   // Envoi de la requete jusqu'à réponse positive
   while(!requeteServeur(nbPacket, buffer));
@@ -234,7 +240,6 @@ void envoiPhoto() {
   Serial.println("Envoi terminé");
 }
 
-
 //------------------------Requete d'envoi des données--------------------------
 
 boolean requeteServeur(unsigned int nbPacket, uint8_t buffer[BUFFER_LEN]) {
@@ -248,16 +253,28 @@ boolean requeteServeur(unsigned int nbPacket, uint8_t buffer[BUFFER_LEN]) {
   Serial.println("Envoi de la requete d'upload de l'image au serveur");
   Serial.println(" -> Id de la carte : " + String(ID) + ", Nombre de packets à envoyer : " + String(nbPacket) + ", Taille du buffer : " + String(DATA_MAX));
 
-  // Paquet de demande
+  // Creation du byte array à envoyer
+  uint8_t demande[8];
+  demande[0] = CLIENT_TYPE;
+  demande[1] = ID;
+  demande[2] = 1;
+  demande[3] = nbPacket;
+  uint32_t octetsDataMax = htonl(DATA_MAX);
+  memcpy((demande+4), &octetsDataMax, sizeof(uint32_t));
+
+  // Paquet de demande (suit le protocole indiqué)
   udp.beginPacket(udpAddress,udpPort);
-  udp.printf("file upload request, id : %04d, packet : %04d, buffer : %08d", ID, nbPacket, DATA_MAX);
+  udp.write(demande, 8);
   udp.endPacket();
 
   // Reponse sensées être reçue du serveur
-  char ack[BUFFER_LEN];
-  snprintf(ack, BUFFER_LEN, "file request accepted, id : %04d, packet : %04d", ID, nbPacket);
-  char nack[BUFFER_LEN];
-  snprintf(nack, BUFFER_LEN, "file request refused, id : %04d, packet : %04d", ID, nbPacket);
+  uint8_t reponse[9];
+  reponse[0] = CLIENT_TYPE;
+  reponse[1] = ID;
+  reponse[2] = 1;
+  reponse[3] = 0;
+  reponse[4] = nbPacket;
+  memcpy((reponse+5), &octetsDataMax, sizeof(uint32_t));
 
   // Timer pour timeout
   unsigned long int timer = millis();
@@ -265,24 +282,26 @@ boolean requeteServeur(unsigned int nbPacket, uint8_t buffer[BUFFER_LEN]) {
   while (true)
   {
     // Remise à zéro du buffer et mise en place de la reception
-    memset(buffer, 0, 50);
+    memset(buffer, 0, BUFFER_LEN);
     udp.parsePacket();
 
     // Lecture des paquets receptionnés
-    if (udp.read(buffer, 50) > 0)
+    if (udp.read(buffer, BUFFER_LEN) > 0)
     {
-      if (!strcmp((char *)buffer,ack)) // Reponse correspondant à une reponse positive
+      if (comparePacket(buffer, reponse, 4) && comparePacket((buffer+4), (reponse+4), 4)) //On ne regarde que les paquets de réponse
       {
-        Serial.println(" <- Reponse positive du serveur, démarrage de l'envoi...");
-        return true;
+        if (!buffer[3]) // Reponse correspondant à une reponse positive
+        {
+          Serial.println(" <- Reponse positive du serveur, démarrage de l'envoi...");
+          return true;
+        }
+        else // Reponse correspondant à une reponse negative
+        {
+          Serial.println(" <- Reponse negative du serveur, tentative de réenvoi de la requete...");
+          delay(1000);
+          return false;
+        }
       }
-      else if (!strcmp((char *)buffer,nack)) // Reponse correspondant à une reponse negative
-      {
-        Serial.println(" <- Reponse negative du serveur, tentative de réenvoi de la requete...");
-        delay(1000);
-        return false;
-      }
-
     }
     // Delai de reponse expiré
     if (millis() > timer+TIMEOUT)
@@ -306,55 +325,76 @@ boolean envoiPaquet(unsigned int idP, unsigned int nbPacket, size_t tailleData, 
 
   Serial.println(" -> Envoi paquet " + String(idP+1) + "/" + String(nbPacket));
 
+  // Creation du byte array d'entete
+  uint8_t entete[ENTETE_LEN];
+  entete[0] = CLIENT_TYPE;
+  entete[1] = ID;
+  entete[2] = 2;
+  entete[3] = idP;
+  uint32_t octetsTailleData;
+
   // On se met à l'emplacement du buffer correspondant au paquet à envoyer
   fbBuf += idP * tailleData;
 
-  // Envoi du paquet avec les donnée
+  // Envoi du paquet avec les données
   if (((idP+1)*tailleData) < fbLen) { // Envoi des premiers paquets
+    octetsTailleData = htonl(tailleData);
+    memcpy((entete+4), &octetsTailleData, sizeof(uint32_t)); // On integre la taille du paquet dans l'entete
     udp.beginPacket(udpAddress,udpPort);
-    udp.printf("file upload, id : %04d, idP : %04d, data : ", ID, idP);
+    udp.write(entete, 8);
     udp.write(fbBuf,tailleData);
     udp.endPacket();
   }
   else if (fbLen%tailleData > 0) { // Envoi du dernier paquet (car plus petit que les autres)
     size_t remainder = fbLen%tailleData;
+    octetsTailleData = htonl(remainder);
+    memcpy((entete+4), &octetsTailleData, sizeof(uint32_t)); // On integre la taille du paquet dans l'entete
     udp.beginPacket(udpAddress,udpPort);
-    udp.printf("file upload, id : %04d, idP : %04d, data : ", ID, idP);
+    udp.write(entete, 8);
     udp.write(fbBuf,remainder);
     udp.endPacket();
   }
 
   // Reponse sensées être reçue du serveur
-  char ack[BUFFER_LEN];
-  snprintf(ack, BUFFER_LEN, "ACK, id : %04d, idP : %04d", ID, idP);
-  char nack[BUFFER_LEN];
-  snprintf(nack, BUFFER_LEN, "NACK, id : %04d, idP : %04d", ID, idP);
+  uint8_t reponse[9];
+  reponse[0] = CLIENT_TYPE;
+  reponse[1] = ID;
+  reponse[2] = 2;
+  reponse[3] = idP;
+  reponse[4] = 0;
+  memcpy((reponse+5), &octetsTailleData, sizeof(uint32_t));
 
   // Timer pour timeout
   unsigned long int timer = millis();
+
+  Serial.println("---debug2---");
 
   //Reception de la confirmation
   while (true)
   {
     // Remise à zéro du buffer et mise en place de la reception
-    memset(buffer, 0, 50);
+    memset(buffer, 0, BUFFER_LEN);
     udp.parsePacket();
 
     // Lecture des paquets receptionnés
-    if (udp.read(buffer, 50) > 0)
+    if (udp.read(buffer, BUFFER_LEN) > 0)
     {
-      if (!strcmp((char *)buffer,ack)) // Reponse correspondant à une bonne reception
+      Serial.println("---debug3---");
+      if (comparePacket(buffer, reponse, 4))
       {
-        Serial.println(" <- ACK paquet n°" + String(idP+1));
-        return true;
+        if (!buffer[4] && comparePacket((buffer+5), (reponse+5), 4)) // Reponse correspondant à une bonne reception
+        {
+          Serial.println("---debug4---");
+          Serial.println(" <- ACK paquet n°" + String(idP+1));
+          return true;
+        }
+        else // Reponse correspondant à une mauvaise reception
+        {
+          Serial.println(" <- NACK paquet n°" + String(idP+1));
+          delay(1000);
+          return false;
+        }
       }
-      else if (!strcmp((char *)buffer,nack)) // Reponse correspondant à une mauvaise reception
-      {
-        Serial.println(" <- NACK paquet n°" + String(idP+1));
-        delay(1000);
-        return false;
-      }
-
     }
     // Delai de reponse expiré
     if (millis() > timer+TIMEOUT)
@@ -364,4 +404,14 @@ boolean envoiPaquet(unsigned int idP, unsigned int nbPacket, size_t tailleData, 
       return false;
     }
   }
+}
+
+
+//---------------------------Comparaison de tableau----------------------------
+
+boolean comparePacket(uint8_t *table1, uint8_t *table2, size_t len) {
+  for (int i=0; i<len; i++)
+    if (table1[i] != table2[i])
+      return 0;
+  return 1;
 }

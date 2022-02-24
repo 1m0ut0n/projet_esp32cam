@@ -28,9 +28,7 @@ Ici, l'ESP demande au serveur s'il peut lui envoyer une image pour analyse avec 
 
 **Octet n°4 :** (*Entier non-signé*) Nombre de paquets necessaire à l'envoi de l'image.
 
-**Octet n°5-8 :** (*Entier non-signé de 4 octets*) Taille maximum de chaque paquet.
-
-**Octet restants :** (*Entier non-signé de n octets*) Taille du fichier image (pour confirmation de bonne reception).
+**Octet n°5-8 :** (*Entier non-signé de 4 octets*) Taille maximum de chaque paquet de données.
 
 > Après cette demande le serveur doit repondre si il accepte ou non. Voir `protocole-serveur.md` pour ça.
 
@@ -40,7 +38,7 @@ Ici, l'ESP envoie une partie du fichier image au serveur.
 
 **Octet n°4 :** (*Entier non-signé*) Identifiant/Index du paquet.
 
-**Octet n°5-8 :** (*Entier non-signé de 4 octets*) Taille du paquet
+**Octet n°5-8 :** (*Entier non-signé de 4 octets*) Taille du paquet de données.
 
 > Après cette demande le serveur doit repondre si il a pris connaissance du paquet ou non. Voir `protocole-serveur.md` pour ça.
   Il devra aussi enregistrer l'image
