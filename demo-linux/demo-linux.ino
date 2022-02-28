@@ -163,7 +163,7 @@ void connectToWiFi(const char * ssid, const char * pwd){
   WiFi.onEvent(WiFiEvent);
 
   //Initialisation de la connection
-  // (La fonction fait son retour avant que la connection
+  // (La fonction fait son return avant que la connection
   //  soit établie, c'est le gestionnaire d'événement qui
   //  prend la suite)
   WiFi.begin(ssid, pwd);
