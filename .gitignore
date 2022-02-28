@@ -1,2 +1,8 @@
+<<<<<<< HEAD
 demo/test_server_udp_python/envoi/loading_cat.jpg
 demo/test_server_udp_python/reception/cam.jpg
+=======
+demo\test_server_udp_python\envoi\loading_cat.jpg
+demo\test_server_udp_python\reception\cam.jpg
+demo-ethernet\libraries
+>>>>>>> 04f8ba5a4f94e90ad00dbe914806fbcf036815c5
