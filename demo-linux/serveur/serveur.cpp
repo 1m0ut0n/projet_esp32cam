@@ -35,7 +35,7 @@
 using namespace cv;
 
 #define PORT    44444
-#define DATA_MAX 1024
+#define DATA_MAX 8192
 
 struct transfertEspPhoto {
   char idEsp;
