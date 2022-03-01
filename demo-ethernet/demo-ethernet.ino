@@ -31,7 +31,7 @@ const int udpPort = 44444;
 EthernetUDP udp;
 
 // Taille max de la donnée transmise par paquet (sortie)
-#define DATA_MAX 1460
+#define DATA_MAX 1460 //En Wifi max 1460, en ethernet 
 // Taille max des paquets entrants
 #define BUFFER_LEN 32
 // Temps avant timeout (en millisecondes)
@@ -259,6 +259,8 @@ void envoiPhoto() {
   unsigned int nbPacket = fbLen / tailleData;
   if (fbLen % tailleData > 0) nbPacket++;
 
+  unsigned long int temps_envoi = millis();
+
   // Envoi de la requete jusqu'à réponse positive
   while(!requeteServeur(nbPacket, buffer));
 
@@ -269,7 +271,12 @@ void envoiPhoto() {
   for (unsigned int i=0; i<nbPacket; i++)
     while(!envoiPaquet(i, nbPacket, tailleData, buffer, fbBuf, fbLen));
 
-  Serial.println("Envoi terminé");
+  Serial.println("Envoi terminé (" + String(millis()-temps_envoi) + " ms)");
+
+  // Libère l'espace mémoire que prend la photo
+  esp_camera_fb_return(fb);
+
+  Serial.println("Envoyez 'p' pour prendre une photo et l'envoyer au serveur.");
 }
 
 //------------------------Requete d'envoi des données--------------------------
