@@ -124,7 +124,9 @@ int enregistrement(struct transfertEspPhoto *esp) {
         return 1;
     }
     imshow("Display window", img);
-    int k = waitKey(0); // Wait for a keystroke in the window
+    int k = waitKey(5000); // Attend une touche clavier pendant 5 sec
+    detroyAllWindows();
+    waitKey();
   return 1;
 }
 
@@ -238,9 +240,7 @@ int main() {
 
   while (run) // Le serveur tourne à l'infini, mais on pourrait imaginer une action de fin grâce au run
   {
-    printf("---debug1---\n");
     n = recvfrom(sockfd, (char *)buffer, DATA_MAX, 0, ( struct sockaddr *) &cliaddr, &(socklen_t)len);
-    printf("---debug2---\n");
     if (n < 0) {
       perror("   >< Echec de la reception\n");
       exit(EXIT_FAILURE);
