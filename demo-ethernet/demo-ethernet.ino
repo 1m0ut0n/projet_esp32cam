@@ -2,7 +2,7 @@
 #include <SPI.h>
 #include <EthernetSPI2.h> // Pareil que Ethernet sauf qu'elle utilse les pins HSPI pour pas avoir de conflit avec les pins de la camera
 #include <lwip/def.h> // Pour htons, htonl, ntohs, ntonhl
-#include <EthernetUdp.h>
+#include "EthernetUdp.h"
 #include "soc/soc.h" // Pour le brownout
 #include "soc/rtc_cntl_reg.h" // Pour le brownout
 #include "esp_camera.h"
@@ -31,7 +31,7 @@ const int udpPort = 44444;
 EthernetUDP udp;
 
 // Taille max de la donnée transmise par paquet (sortie)
-#define DATA_MAX 1460 //En Wifi max 1460, en ethernet 
+#define DATA_MAX 1460 // Max 1460 (MTU)
 // Taille max des paquets entrants
 #define BUFFER_LEN 32
 // Temps avant timeout (en millisecondes)
@@ -60,6 +60,9 @@ EthernetUDP udp;
 #define HREF_GPIO_NUM    23
 #define PCLK_GPIO_NUM    22
 
+//LEDS
+#define LED 2
+
 
 //----------------------------------Setup--------------------------------------
 
@@ -81,8 +84,8 @@ void setup(){
   Serial.println();
   Serial.println("Démarrage de l'ESP32cam n°" + String(ID));
 
-  // Configuration des pins HSPI
-
+  // LEDs
+  pinMode(LED, OUTPUT);
 
   //Connect to the WiFi network
   ethernetConnection();
@@ -151,11 +154,15 @@ void redemmarage() {
   Serial.print("Redémarrage");
   delay(500);
   Serial.print(".");
+  digitalWrite(LED,HIGH);
   delay(500);
   Serial.print(".");
+  digitalWrite(LED,LOW);
   delay(500);
   Serial.println(".");
+  digitalWrite(LED,HIGH);
   delay(500);
+  digitalWrite(LED,LOW);
   ESP.restart();
 }
 
@@ -167,6 +174,7 @@ void ethernetConnection(){
 
   // Configuration du pin CS pour l'Ethernet
   Ethernet.init(PIN_CS);
+  Serial.println(VSPI);
 
   // Initialisation de la connection Ethernet
   Serial.println("Initialisation de la connection Ethernet avec DHCP :");
@@ -269,7 +277,11 @@ void envoiPhoto() {
   // On envoie les paquets un à un, chaque paquet est renvoyé
   // en boucle tant que le serveur n'a pas repondu ACK
   for (unsigned int i=0; i<nbPacket; i++)
+  {
+    //unsigned long int debug = millis();
     while(!envoiPaquet(i, nbPacket, tailleData, buffer, fbBuf, fbLen));
+    //Serial.println(millis()-debug);
+  }
 
   Serial.println("Envoi terminé (" + String(millis()-temps_envoi) + " ms)");
 
@@ -290,7 +302,7 @@ boolean requeteServeur(unsigned int nbPacket, uint8_t buffer[BUFFER_LEN]) {
 
   // Envoi de la requete d'upload
   Serial.println("Envoi de la requete d'upload de l'image au serveur");
-  Serial.println(" -> Id de la carte : " + String(ID) + ", Nombre de packets à envoyer : " + String(nbPacket) + ", Taille du buffer : " + String(DATA_MAX));
+  //Serial.println(" -> Id de la carte : " + String(ID) + ", Nombre de packets à envoyer : " + String(nbPacket) + ", Taille du buffer : " + String(DATA_MAX));
 
   // Creation du byte array à envoyer
   uint8_t demande[8];
@@ -331,12 +343,12 @@ boolean requeteServeur(unsigned int nbPacket, uint8_t buffer[BUFFER_LEN]) {
       {
         if (!buffer[3]) // Reponse correspondant à une reponse positive
         {
-          Serial.println(" <- Reponse positive du serveur, démarrage de l'envoi...");
+          //Serial.println(" <- Reponse positive du serveur, démarrage de l'envoi... (" + String(millis()-timer) + " ms)");
           return true;
         }
         else // Reponse correspondant à une reponse negative
         {
-          Serial.println(" <- Reponse negative du serveur, tentative de réenvoi de la requete...");
+          //Serial.println(" <- Reponse negative du serveur, tentative de réenvoi de la requete... (" + String(millis()-timer) + " ms)");
           delay(1000);
           return false;
         }
@@ -362,7 +374,7 @@ boolean envoiPaquet(unsigned int idP, unsigned int nbPacket, size_t tailleData, 
      Si la requette obtient un reponse, la fonction revoit true,
      sinon elle revoit false.                                      */
 
-  Serial.println(" -> Envoi paquet " + String(idP+1) + "/" + String(nbPacket));
+  //Serial.println(" -> Envoi paquet " + String(idP+1) + "/" + String(nbPacket));
 
   // Creation du byte array d'entete
   uint8_t entete[ENTETE_LEN];
@@ -380,8 +392,11 @@ boolean envoiPaquet(unsigned int idP, unsigned int nbPacket, size_t tailleData, 
     octetsTailleData = htonl(tailleData);
     memcpy((entete+4), &octetsTailleData, sizeof(uint32_t)); // On integre la taille du paquet dans l'entete
     udp.beginPacket(udpAddress,udpPort);
+    //unsigned long int debug = millis();
     udp.write(entete, 8);
     udp.write(fbBuf,tailleData);
+    //udp.write(fbBuf,0);
+    //Serial.println(millis()-debug);
     udp.endPacket();
   }
   else if (fbLen%tailleData > 0) { // Envoi du dernier paquet (car plus petit que les autres)
@@ -391,6 +406,7 @@ boolean envoiPaquet(unsigned int idP, unsigned int nbPacket, size_t tailleData, 
     udp.beginPacket(udpAddress,udpPort);
     udp.write(entete, 8);
     udp.write(fbBuf,remainder);
+    //udp.write(fbBuf,0);
     udp.endPacket();
   }
 
@@ -420,12 +436,12 @@ boolean envoiPaquet(unsigned int idP, unsigned int nbPacket, size_t tailleData, 
       {
         if (!buffer[4] && comparePacket((buffer+5), (reponse+5), 4)) // Reponse correspondant à une bonne reception
         {
-          Serial.println(" <- ACK paquet n°" + String(idP+1));
+          //Serial.println(" <- ACK paquet n°" + String(idP+1) + " (" + String(millis()-timer) + " ms)");
           return true;
         }
         else // Reponse correspondant à une mauvaise reception
         {
-          Serial.println(" <- NACK paquet n°" + String(idP+1));
+          //Serial.println(" <- NACK paquet n°" + String(idP+1) + " (" + String(millis()-timer) + " ms)");
           delay(1000);
           return false;
         }
