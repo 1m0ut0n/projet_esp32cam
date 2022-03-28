@@ -13,7 +13,6 @@
  *     fonction de son id
  *    -> Si un client demande et qu'on rempli déjà le tableau on refuse
  *  - Rajouter la taille des images
- *  - Resoudre le problème de latence entre les paquets (recvfrom)
  */
 
 
@@ -35,11 +34,11 @@
 using namespace cv;
 
 #define PORT    44444
-#define DATA_MAX 8192
+#define DATA_MAX 1460
 
 struct transfertEspPhoto {
-  char idEsp;
-  char nbPaquet;
+  unsigned char idEsp;
+  unsigned char nbPaquet;
   size_t tailleBuffer;
   uint8_t * img;
   //unsigned int carriage = 0;
@@ -49,7 +48,7 @@ struct transfertEspPhoto {
 
 //------------------Reponse à une demande d'envoi d'image----------------------
 
-int reponseDemande(char *buffer, struct transfertEspPhoto *esp, int sockfd, struct sockaddr_in cliaddr) {
+int reponseDemande(uint8_t *buffer, struct transfertEspPhoto *esp, int sockfd, struct sockaddr_in cliaddr) {
 
   printf("-> Reception d'une requette de transfert d'image\n");
 
@@ -124,20 +123,26 @@ int enregistrement(struct transfertEspPhoto *esp) {
         return 1;
     }
     imshow("Display window", img);
-    int k = waitKey(5000); // Attend une touche clavier pendant 5 sec
-    detroyAllWindows();
-    waitKey();
+    int k = waitKey(5000);
+    destroyAllWindows();
+    waitKey(1); // Wait for a keystroke in the window
+    if(k == 's')
+    {
+        imwrite("reception/img.png", img);
+    }
+
   return 1;
 }
 
 
 //--------------------Reception d'un paquet de transfert-----------------------
 
-int receptionPaquet(char *buffer, struct transfertEspPhoto *esp, int sockfd, struct sockaddr_in cliaddr) {
+int receptionPaquet(uint8_t *buffer, struct transfertEspPhoto *esp, int sockfd, struct sockaddr_in cliaddr) {
 
   // On vérifie qu'on communique toujours avec le même esp
-  if (buffer[1] != esp->idEsp)
+  if (buffer[1] != esp->idEsp) {
     return 0;
+  }
 
   // On part du principe que tout se passerra bien
   // On peut le changer en cours de route si quelque chose se passe mal
@@ -199,7 +204,7 @@ int main() {
 
   printf("Initialisation du serveur\n");
   int sockfd;
-  char buffer[DATA_MAX];
+  uint8_t buffer[DATA_MAX];
   struct sockaddr_in servaddr, cliaddr;
 
   // Creation du socket
@@ -237,24 +242,31 @@ int main() {
   len = sizeof(cliaddr);  //len is value/resuslt
   struct transfertEspPhoto esp;
   esp.tailleImg = 0;
+  memset(buffer, 0, DATA_MAX);
 
-  while (run) // Le serveur tourne à l'infini, mais on pourrait imaginer une action de fin grâce au run
-  {
-    n = recvfrom(sockfd, (char *)buffer, DATA_MAX, 0, ( struct sockaddr *) &cliaddr, &(socklen_t)len);
+  while (run) { // Le serveur tourne à l'infini, mais on pourrait imaginer une action de fin grâce au run
+    n = recvfrom(sockfd, (char *)buffer, DATA_MAX, 0, ( struct sockaddr *) &cliaddr, (socklen_t*)&len);
     if (n < 0) {
       perror("   >< Echec de la reception\n");
       exit(EXIT_FAILURE);
     }
 
+    // Impression des données recue en hexa
+    //printf("data : ");
+    //for(size_t i=0; i<DATA_MAX; i++) printf("%02x ", buffer[i]);
+    //printf("\n");
+
     if (buffer[0] == 1) // Cas des ESP photographes
     {
-      if (buffer[2] == 1) { // Cas d'une reception de demande
-        reponseDemande(buffer, &esp, sockfd, cliaddr);
-      }
-      else if (buffer[2] == 2) {
+      if (buffer[2] == 2) {
         receptionPaquet(buffer, &esp, sockfd, cliaddr);
       }
+      else if (buffer[2] == 1) { // Cas d'une reception de demande
+        reponseDemande(buffer, &esp, sockfd, cliaddr);
+      }
     }
+
+    memset(buffer, 0, DATA_MAX);
   }
 
   return 0;
