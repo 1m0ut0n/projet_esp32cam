@@ -139,7 +139,7 @@ void loop(){
   if(bailDHCP())
   {
     char requete;
-    while (Serial.available() != 0)
+    while (Serial.available())
     {
       requete = Serial.read();
       if (requete == 'p') envoiPhoto();
