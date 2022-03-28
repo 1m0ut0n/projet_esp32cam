@@ -36,6 +36,9 @@ using namespace cv;
 #define PORT    44444
 #define DATA_MAX 1460
 
+// Pour avoir plus d'information
+//#define INFO
+
 struct transfertEspPhoto {
   unsigned char idEsp;
   unsigned char nbPaquet;
@@ -50,7 +53,10 @@ struct transfertEspPhoto {
 
 int reponseDemande(uint8_t *buffer, struct transfertEspPhoto *esp, int sockfd, struct sockaddr_in cliaddr) {
 
+  printf("Reception d'une image\n");
+  #ifdef INFO
   printf("-> Reception d'une requette de transfert d'image\n");
+  #endif
 
   // On part du principe que tout se passerra bien
   // On peut le changer en cours de route si quelque chose se passe mal
@@ -63,7 +69,9 @@ int reponseDemande(uint8_t *buffer, struct transfertEspPhoto *esp, int sockfd, s
   memcpy(&octetsTailleBuffer, (buffer+4), sizeof(uint32_t));
   esp->tailleBuffer = ntohl(octetsTailleBuffer); // Taille du buffer de donnée sur chaque paquet
   esp->img = (uint8_t *)malloc((esp->nbPaquet)*(esp->tailleBuffer - 8)*sizeof(uint8_t)); // 8 est la taille de l'entete des paquets de données
+  #ifdef INFO
   printf("  Enregistrement des données liées au transfert\n");
+  #endif
 
   // Création de la reponse au client
   uint8_t reponse[9];
@@ -79,7 +87,9 @@ int reponseDemande(uint8_t *buffer, struct transfertEspPhoto *esp, int sockfd, s
 
   // Envoi de la reponse
   sendto(sockfd, (const uint8_t *)reponse, 9, MSG_CONFIRM, (const struct sockaddr *) &cliaddr, sizeof(cliaddr));
+  #ifdef INFO
   printf("<- Envoi d'une reponse positive\n");
+  #endif
 
   return 1;
 }
@@ -154,7 +164,9 @@ int receptionPaquet(uint8_t *buffer, struct transfertEspPhoto *esp, int sockfd, 
   memcpy(&octetstailleDonnees, (buffer+4), sizeof(uint32_t));
   int tailleDonnees = ntohl(octetstailleDonnees); // Taille du paquet
 
+  #ifdef INFO
   printf("-> Reception du paquet %d/%d du transfert d'image\n", idP+1, esp->nbPaquet);
+  #endif
 
   // On considère que tout les données du paquet on toutes pour taille la
   // tailleBuffer (sauf le dernier). Ca nous permet de réecrire au dessus
@@ -185,7 +197,9 @@ int receptionPaquet(uint8_t *buffer, struct transfertEspPhoto *esp, int sockfd, 
 
   // Envoi de la reponse
   sendto(sockfd, (const uint8_t *)reponse, 9, MSG_CONFIRM, (const struct sockaddr *) &cliaddr, sizeof(cliaddr));
+  #ifdef INFO
   printf("<- ACK paquet n°%d\n", idP+1);
+  #endif
 
   // Si c'est le dernier paquet, on declenche l'enregistrement de l'image
   if (idP + 1 >= esp->nbPaquet)
@@ -208,7 +222,9 @@ int main() {
   struct sockaddr_in servaddr, cliaddr;
 
   // Creation du socket
+  #ifdef INFO
   printf("   Création du socket\n");
+  #endif
   if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
     perror("   >< Echec de la création du socket\n");
     exit(EXIT_FAILURE);
@@ -224,7 +240,9 @@ int main() {
   servaddr.sin_port = htons(PORT);
 
   // Bind du socket avec l'adresse du serveur
+  #ifdef INFO
   printf("   Bind du socket\n");
+  #endif
   if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0)
   {
     perror("   >< Echec du bind\n");
