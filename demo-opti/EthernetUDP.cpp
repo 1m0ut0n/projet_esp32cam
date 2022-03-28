@@ -357,14 +357,6 @@ boolean UDPClass::beginPacket() {
 
   if (_octetsEcrits) { // Si on avait écrit
 
-    // On prend la position de notre pointeur de lecture dans le Socket 0 TX
-    // Read Data Pointer Register (le pointeur d'avant envoi)
-    uint16_t pointeurLecture = w5500.readShort(w5500.socket0Register, 0x0024);
-
-    // On remet le pointeur d'écriture TX à sa place d'origine (la même que le
-    // pointeur de lecture) dans le Socket n TX Write Data Pointer Register
-    w5500.writeShort(w5500.socket0Register, 0x0024, pointeurLecture);
-
     // On met _octetsEcrits à 0
     _octetsEcrits = 0;
 
@@ -399,9 +391,7 @@ boolean UDPClass::write(uint8_t octet) {
   uint16_t pointeurEcriture = w5500.readShort(w5500.socket0Register, 0x0024);
 
   // On on ecrit l'octet dans le buffer TX à la suite
-  w5500.writeByte(w5500.socket0TXBuffer, pointeurEcriture, octet);
-
-
+  w5500.writeByte(w5500.socket0TXBuffer, pointeurEcriture+_octetsEcrits, octet);
 
   //On met à jour _octetsEcrits et on retourne la reussite (true)
   _octetsEcrits++;
@@ -425,6 +415,7 @@ boolean UDPClass::write(const uint8_t * buffer, uint16_t len) {
   } while(placeRestante != test);
 
   //if ((_octetsEcrits+len) >= MTU || placeRestante < (_octetsEcrits+len)) return false;
+  // Ca veut pas fonctionner, on dirait que le S0_FSR renvoit toujours 0
 
   // On prend la position de notre pointeur d'Ecriture dans le Socket 0 TX
   // Write Data Pointer Register
