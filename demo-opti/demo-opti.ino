@@ -38,6 +38,9 @@ const uint16_t udpPort = 44444;
 #define BUFFER_LEN 32
 // Temps avant timeout (en millisecondes)
 #define TIMEOUT 5000
+// Temps à attendre en cas de reponse négative ou timeout avant le réenvoi
+// d'un paquet
+#define WAIT_TIME 100
 // Taille de l'entete lors d'un envoi de données (en octets)
 #define ENTETE_LEN 8
 // Pin Chip Select de l'Ethernet
@@ -65,13 +68,23 @@ const uint16_t udpPort = 44444;
 //LEDS
 #define LED 2
 
-// Pour avoir plus d'info envoyé à l'ordinateur (décommenter)
+// Pour avoir des info envoyées à l'ordinateur par le port serial (décommenter)
+#define INFO
+// Pour avoir plus d'info envoyées à l'ordinateur par le port serial
+// (décommenter)
 // /!\ Augmente considérablement les temps d'envoi
 //#define MORE_INFO
 
 
 //----------------------------------Setup--------------------------------------
 
+// Variables globales :
+// Buffer de reception
+uint8_t bufferReception[BUFFER_LEN];
+// Taille de la donnée dans un paquet
+size_t tailleData = DATA_MAX - ENTETE_LEN;
+
+// Setup
 void setup(){
 
   //Desactiver le detecteur de brownout
@@ -80,6 +93,7 @@ void setup(){
   // Initialisation de la connection Serial:
   Serial.begin(115200);
   while (!Serial);
+  #ifdef INFO
   Serial.println();
   Serial.println("  ________________________________________________________________");
   Serial.println(" /  _____           _         _            _____                  \\");
@@ -90,6 +104,7 @@ void setup(){
   Serial.println(" \\________________________________________________________________/");
   Serial.println();
   Serial.println("Démarrage de l'ESP32cam n°" + String(ID));
+  #endif
 
   // LEDs
   pinMode(LED, OUTPUT);
@@ -129,13 +144,17 @@ void setup(){
   // Initialisation de la caméra
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
+    #ifdef INFO
     Serial.print("L'initialisation de la caméra à ratée : Erreur 0X");
     Serial.println(err, HEX);
+    #endif
     redemmarage();
   }
 
+  #ifdef INFO
   Serial.println("Initialisation terminée");
   Serial.println("Envoyez 'p' pour prendre une photo et l'envoyer au serveur.");
+  #endif
 }
 
 
@@ -158,19 +177,29 @@ void loop(){
 
 void redemmarage() {
   //Redemarrage de l'appareil (en cas de problèmes)
+  #ifdef INFO
   Serial.print("Redémarrage");
+  #endif
   delay(500);
+  #ifdef INFO
   Serial.print(".");
+  #endif
   digitalWrite(LED,HIGH);
   delay(500);
+  #ifdef INFO
   Serial.print(".");
+  #endif
   digitalWrite(LED,LOW);
   delay(500);
+  #ifdef INFO
   Serial.println(".");
+  #endif
   digitalWrite(LED,HIGH);
   delay(500);
   digitalWrite(LED,LOW);
+  //#ifdef INFO
   Serial.end();
+  //#endif
   ESP.restart();
 }
 
@@ -184,27 +213,37 @@ void ethernetConnection(){
   Ethernet.init();
 
   // Initialisation de la connection Ethernet
+  #ifdef INFO
   Serial.print("Initialisation de la connection Ethernet avec DHCP");
+  #endif
   if (!Ethernet.begin(mac)) {
+    #ifdef INFO
     Serial.println();
     Serial.print("Echec de la configuration de l'Ethernet avec DHCP. ");
+    #endif
     if (Ethernet.hardwareStatus() == EthernetNoHardware ) {
+      #ifdef INFO
       Serial.println("Le shield Ethernet n'a pas été trouvé.");
       Serial.println("L'ESP va redemmarer.");
+      #endif
 
     }
     else if (Ethernet.linkStatus() == LinkOFF) {
+      #ifdef INFO
       Serial.println("Le câble Ethernet n'est pas connecté.");
       Serial.println("L'ESP va redemmarer.");
+      #endif
     }
     // Comme ça n'as pas fonctionné, on redemmare l'ESP
     redemmarage();
   }
 
   // Si on est connectés
+  #ifdef INFO
   Serial.println(" : réussie");
   Serial.print("Adresse IP : ");
   Serial.println(Ethernet.localIP());
+  #endif
   udp.begin(udpPort);
   udp.configServer(serverPort, serverAddress);
 }
@@ -217,29 +256,37 @@ int bailDHCP() {
   switch (Ethernet.maintain()) {
     case 1:
       //renewed fail
+      #ifdef INFO
       Serial.println("Erreur : Echec du renouvelement du bail DHCP.");
+      #endif
       return 0;
 
     case 2:
       //renewed success
+      #ifdef INFO
       Serial.println("Renouvelement du bail DHCP.");
       //print your local IP address:
       Serial.print("Adresse IP : ");
       Serial.println(Ethernet.localIP());
+      #endif
       udp.begin(udpPort);
       return 1;
 
     case 3:
       //rebind fail
+      #ifdef INFO
       Serial.println("Erreur: Echec du rebind du bail DHCP.");
+      #endif
     return 0;
 
     case 4:
       //rebind success
+      #ifdef INFO
       Serial.println("Rebind du bail DHCP.");
       //print your local IP address:
       Serial.print("Adresse IP : ");
       Serial.println(Ethernet.localIP());
+      #endif
       udp.begin(udpPort);
       return 1;
 
@@ -261,59 +308,73 @@ void envoiPhoto() {
 
   // Verification de la capture, redemmarage sinon
   if(!fb) {
+    #ifdef INFO
     Serial.println("La capture a ratée, l'appareil va redemarrer");
+    #endif
     redemmarage();
   }
+  #ifdef INFO
   Serial.println("Capture prise !");
+  #endif
 
   //Variables
   uint8_t *fbBuf = fb->buf; // Pointeur vers le binaire du fichier image
   size_t fbLen = fb->len; // Longueur
-  uint8_t buffer[BUFFER_LEN]; // Buffer des paquet entrants
+  uint8_t bufferReception[BUFFER_LEN]; // Buffer des paquet entrants
 
   // Determination de la procedure d'envoi
+  #ifdef INFO
   Serial.println("Taille image : " + String(fbLen) + " octets");
-  size_t tailleData = DATA_MAX - ENTETE_LEN;
+  #endif
   unsigned int nbPacket = fbLen / tailleData;
   if (fbLen % tailleData > 0) nbPacket++;
 
+  #ifdef INFO
   unsigned long int temps_envoi = millis();
+  #endif
 
   // Envoi de la requete jusqu'à réponse positive
-  while(!requeteServeur(nbPacket, buffer));
+  while(!requeteServeur(nbPacket));
 
+  #ifdef INFO
   Serial.println("Envoi en cours de " + String(nbPacket) + " paquets au serveur");
+  #endif
 
   // On envoie les paquets un à un, chaque paquet est renvoyé
   // en boucle tant que le serveur n'a pas repondu ACK
   for (unsigned int i=0; i<nbPacket; i++)
   {
     //unsigned long int debug = millis();
-    while(!envoiPaquet(i, nbPacket, tailleData, buffer, fbBuf, fbLen));
+    while(!envoiPaquet(i, nbPacket, fbBuf, fbLen));
     //Serial.println(millis()-debug);
   }
-
+  #ifdef INFO
   Serial.println("Envoi terminé (" + String(millis()-temps_envoi) + " ms)");
+  #endif
 
   // Libère l'espace mémoire que prend la photo
   esp_camera_fb_return(fb);
 
+  #ifdef INFO
   Serial.println("Envoyez 'p' pour prendre une photo et l'envoyer au serveur.");
+  #endif
 }
 
 //------------------------Requete d'envoi des données--------------------------
 
-boolean requeteServeur(unsigned int nbPacket, uint8_t buffer[BUFFER_LEN]) {
+boolean requeteServeur(unsigned int nbPacket) {
   /* Envoie une requete d'envoi de photo au serveur
      puis en attend la reponse, elle peut être positive, negative
      ou ne pas avoir lieu (timeout).
      Si la requette obtient un reponse, la fonction revoit true,
      sinon elle revoit false.                                      */
 
+  #ifdef INFO
   // Envoi de la requete d'upload
   Serial.println("Envoi de la requete d'upload de l'image au serveur");
   #ifdef MORE_INFO
   Serial.println(" -> Id de la carte : " + String(ID) + ", Nombre de packets à envoyer : " + String(nbPacket) + ", Taille du buffer : " + String(DATA_MAX));
+  #endif
   #endif
 
   // Creation du byte array à envoyer
@@ -345,28 +406,32 @@ boolean requeteServeur(unsigned int nbPacket, uint8_t buffer[BUFFER_LEN]) {
   while (true)
   {
     // Remise à zéro du buffer et mise en place de la reception
-    memset(buffer, 0, BUFFER_LEN);
+    memset(bufferReception, 0, BUFFER_LEN);
     uint16_t longueurReception = udp.parsePacket();
     if (longueurReception)
     {
       // Lecture des paquets receptionnés
-      udp.read(buffer, longueurReception);
+      udp.read(bufferReception, longueurReception);
 
-      if (comparePacket(buffer, reponse, 4) && comparePacket((buffer+4), (reponse+4), 4)) //On ne regarde que les paquets de réponse
+      if (comparePacket(bufferReception, reponse, 4) && comparePacket((bufferReception+4), (reponse+4), 4)) //On ne regarde que les paquets de réponse
       {
-        if (!buffer[3]) // Reponse correspondant à une reponse positive
+        if (!bufferReception[3]) // Reponse correspondant à une reponse positive
         {
+          #ifdef INFO
           #ifdef MORE_INFO
           Serial.println(" <- Reponse positive du serveur, démarrage de l'envoi... (" + String(millis()-timer) + " ms)");
+          #endif
           #endif
           return true;
         }
         else // Reponse correspondant à une reponse negative
         {
+          #ifdef INFO
           #ifdef MORE_INFO
           Serial.println(" <- Reponse negative du serveur, tentative de réenvoi de la requete... (" + String(millis()-timer) + " ms)");
           #endif
-          delay(1000);
+          #endif
+          delay(WAIT_TIME);
           return false;
         }
       }
@@ -374,8 +439,10 @@ boolean requeteServeur(unsigned int nbPacket, uint8_t buffer[BUFFER_LEN]) {
     // Delai de reponse expiré
     if (millis() > timer+TIMEOUT)
     {
+      #ifdef INFO
       Serial.println(" >< Timeout, tentative de réenvoi de la requete...");
-      delay(1000);
+      #endif
+      delay(WAIT_TIME);
       return false;
     }
   }
@@ -384,14 +451,18 @@ boolean requeteServeur(unsigned int nbPacket, uint8_t buffer[BUFFER_LEN]) {
 
 //-----------------------------Envoi d'un paquet-------------------------------
 
-boolean envoiPaquet(unsigned int idP, unsigned int nbPacket, size_t tailleData, uint8_t buffer[BUFFER_LEN], uint8_t *fbBuf, size_t fbLen) {
+boolean envoiPaquet(unsigned int idP, unsigned int nbPacket, uint8_t *fbBuf, size_t fbLen) {
   /* Envoie le packet numero idP au serveur puis attend la
      confirmation de bonne reception, elle peut être positive, negative
      ou ne pas avoir lieu (timeout).
      Si la requette obtient un reponse, la fonction revoit true,
      sinon elle revoit false.                                      */
 
-  //Serial.println(" -> Envoi paquet " + String(idP+1) + "/" + String(nbPacket));
+  #ifdef INFO
+  #ifdef MORE_INFO
+  Serial.println(" -> Envoi paquet " + String(idP+1) + "/" + String(nbPacket));
+  #endif
+  #endif
 
   // Creation du byte array d'entete
   uint8_t entete[ENTETE_LEN];
@@ -439,28 +510,32 @@ boolean envoiPaquet(unsigned int idP, unsigned int nbPacket, size_t tailleData, 
   while (true)
   {
     // Remise à zéro du buffer et mise en place de la reception
-    memset(buffer, 0, BUFFER_LEN);
+    memset(bufferReception, 0, BUFFER_LEN);
     uint16_t longueurReception = udp.parsePacket();
     if (longueurReception)
     {
       // Lecture des paquets receptionnés
-      udp.read(buffer, longueurReception);
+      udp.read(bufferReception, longueurReception);
 
-      if (comparePacket(buffer, reponse, 4))
+      if (comparePacket(bufferReception, reponse, 4))
       {
-        if (!buffer[4] && comparePacket((buffer+5), (reponse+5), 4)) // Reponse correspondant à une bonne reception
+        if (!bufferReception[4] && comparePacket((bufferReception+5), (reponse+5), 4)) // Reponse correspondant à une bonne reception
         {
+          #ifdef INFO
           #ifdef MORE_INFO
           Serial.println(" <- ACK paquet n°" + String(idP+1) + " (" + String(millis()-timer) + " ms)");
+          #endif
           #endif
           return true;
         }
         else // Reponse correspondant à une mauvaise reception
         {
+          #ifdef INFO
           #ifdef MORE_INFO
           Serial.println(" <- NACK paquet n°" + String(idP+1) + " (" + String(millis()-timer) + " ms)");
           #endif
-          delay(1000);
+          #endif
+          delay(WAIT_TIME);
           return false;
         }
       }
@@ -468,8 +543,10 @@ boolean envoiPaquet(unsigned int idP, unsigned int nbPacket, size_t tailleData, 
     // Delai de reponse expiré
     if (millis() > timer+TIMEOUT)
     {
+      #ifdef INFO
       Serial.println(" >< Timeout, tentative de réenvoi du paquet n°" + String(idP+1) + "...");
-      delay(1000);
+      #endif
+      delay(WAIT_TIME);
       return false;
     }
   }
