@@ -7,8 +7,8 @@
 
 #include <Arduino.h>
 #include <SPI.h>
-#include "w5500HSPI.h" // Bibliothèque perso pour la communication avec une w5500 avec le HSPI
-#include "EthernetUdp.h" // Bibliothèque perso pour l'Ethernet en UDP pour cette application
+#include "w5500HSPI.h" // Bibliothèque custom pour la communication avec une w5500 avec le HSPI
+#include "EthernetUdp.h" // Bibliothèque custom pour l'Ethernet en UDP pour cette application
 #include "soc/soc.h" // Pour le brownout
 #include "soc/rtc_cntl_reg.h" // Pour le brownout
 #include "esp_camera.h"
