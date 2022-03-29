@@ -24,6 +24,11 @@
 #define PIN_INT     32
 
 #define SPI_ETHERNET_SETTINGS SPISettings(26600000, MSBFIRST, SPI_MODE0)
+//#define SPI_ETHERNET_SETTINGS SPISettings(80000000, MSBFIRST, SPI_MODE0)
+// Normalement, en utilisant le HSPI, on a pas besoin d'utiliser la GPIO Matrix
+// et pourrait donc théoriquement monter la fréquence a 80 MHz
+// Le problème c'est qu'on y arrive pas et on sait pas pourquoi, on se retrouve
+// à être limité à 26,6 MHz comme si on utilisait la GPIO Matrix
 
 static SPIClass * hspi = NULL;
 
@@ -69,6 +74,9 @@ class W5500Class {
     static const uint8_t socket0Register = 0b00001;
     static const uint8_t socket0TXBuffer = 0b00010;
     static const uint8_t socket0RXBuffer = 0b00011;
+    static const uint8_t socket1Register = 0b00101;
+    static const uint8_t socket1TXBuffer = 0b00110;
+    static const uint8_t socket1RXBuffer = 0b00111;
     // ...
     // On ne defini pas les autres car on en a pas besoin
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  * Pour utiliser un shield Ethernet équipé d'une w5500.                       *
- * On utilise le HSPI et on ne configure qu'un socket (pour avoir 16k de ram) *
+ * On utilise le HSPI et on ne configure que 2 socket (pour avoir 8k de ram)  *
  * en mode UDP et on configure un serveur unique avec lequel se fera la       *
  * communication. (Tout autre paquet sera ignoré.)                            *
  * Cette bibliothèque EthernetUDP.h est optimisée pour notre utilisation      *
@@ -53,9 +53,9 @@ class EthernetClass {
     inline void init() {w5500.init();};
     // Initialise la communication SPI avec le shield et fait les première
     // configuration
-    void begin(const uint8_t * mac, const uint8_t * gateway, const uint8_t * subnet, const uint8_t * ip);
+    boolean begin(const uint8_t * mac, const uint8_t * gateway, const uint8_t * subnet, const uint8_t * ip);
     // l'adresse mac est un tableu de 6 uint8_t, les adresses ip sont des tableau de 4 uint8_t
-    void begin(const uint8_t * mac, const uint8_t * ip);
+    boolean begin(const uint8_t * mac, const uint8_t * ip);
     // Met un gateway et un subnet par défaut (x.x.x.1 et 255.255.255.0)
 
     // DHCP
@@ -98,8 +98,16 @@ class UDPClass {
 
   public :
 
+    // Constructeur de la classe avec le socket utilisé (dispo 0 et 1)
+    // La 1 est deja utilisée par le DHCP
+    UDPClass(); // Cherche le premier socket (fonctionne pas jsp pk)
+    UDPClass(uint8_t socketN);
+
+    // Destructeur de la classe (appel la fonction close avant sa destruction)
+    ~UDPClass();
+
     // Fonctions d'initialisation
-    int begin(unsigned short port);
+    boolean begin(unsigned short port);
     // On configure un unique socket sur la w5500 en UDP
     void configServer(unsigned short portDest, const uint8_t * ipDest);
     // On configure à l'avance notre destination et port car on communiquera avec
@@ -140,6 +148,12 @@ class UDPClass {
 
   private :
 
+    //Registers
+    uint8_t _socket = 8; // Valeur pas de socket
+    uint8_t _socketRegister = 0b01;
+    uint8_t _TXRegister = 0b10;
+    uint8_t _RXRegister = 0b11;
+
     // Octets restants à lire
     uint16_t _octetsRestant=0;
     uint16_t _octetsEcrits=0;
@@ -151,9 +165,6 @@ class UDPClass {
 
   // Plus d'info dans le cpp
 };
-
-extern UDPClass udp;
-// On peut se permettre d'initialiser la classe içi car il y en aura qu'une
 
 
 #endif

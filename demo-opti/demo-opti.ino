@@ -82,7 +82,9 @@ const uint16_t udpPort = 44444;
 // Buffer de reception
 uint8_t bufferReception[BUFFER_LEN];
 // Taille de la donnée dans un paquet
-size_t tailleData = DATA_MAX - ENTETE_LEN;
+const size_t tailleData = DATA_MAX - ENTETE_LEN;
+// Classe UDP
+UDPClass udp(1); // Sur le socket 0
 
 // Setup
 void setup(){
@@ -197,9 +199,7 @@ void redemmarage() {
   digitalWrite(LED,HIGH);
   delay(500);
   digitalWrite(LED,LOW);
-  //#ifdef INFO
-  Serial.end();
-  //#endif
+  //Serial.end() le restart ne fonctionne plus après ça
   ESP.restart();
 }
 
@@ -219,22 +219,23 @@ void ethernetConnection(){
   if (!Ethernet.begin(mac)) {
     #ifdef INFO
     Serial.println();
-    Serial.print("Echec de la configuration de l'Ethernet avec DHCP. ");
+    Serial.print("Echec de la configuration de l'Ethernet avec DHCP : ");
     #endif
     if (Ethernet.hardwareStatus() == EthernetNoHardware ) {
       #ifdef INFO
       Serial.println("Le shield Ethernet n'a pas été trouvé.");
-      Serial.println("L'ESP va redemmarer.");
       #endif
 
     }
     else if (Ethernet.linkStatus() == LinkOFF) {
       #ifdef INFO
       Serial.println("Le câble Ethernet n'est pas connecté.");
-      Serial.println("L'ESP va redemmarer.");
       #endif
     }
     // Comme ça n'as pas fonctionné, on redemmare l'ESP
+    #ifdef INFO
+    Serial.println("L'ESP va redemmarer.");
+    #endif
     redemmarage();
   }
 

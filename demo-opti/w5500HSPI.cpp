@@ -23,10 +23,12 @@ boolean W5500Class::init() {
   resetCS();
   hspi->begin();
 
+  // On verifie que le SPI fonctionne en regardant la version
+  if (readByte(commonRegister, 0x0039) != 4) return false;
+
   // Reglages du w5500 (voir doc w5500)
   if (!softReset()) return false; // Si le reset à pas fonctioné
   writeByte(commonRegister, 0x0016, 0b11000000); // Activation de l'interrupt pour les conflits d'IP et destination inaccessibles
-  writeByte(commonRegister, 0x0018, 0b00000001); // Activation de l'interrupt pour le socket 0 seul (car c'est le seul qu'on utilise)
 
   return true; // Init réussi
 }
@@ -35,6 +37,7 @@ boolean W5500Class::init() {
 boolean W5500Class::softReset() {
   unsigned char count = 0;
   writeByte(commonRegister, 0x0000, 0b10000000); // Declenchement du soft-reset dans le MR
+
   do {
     if (readByte(commonRegister, 0x0000)==0) return true; // On test si c'est réussi
     delay(2);
