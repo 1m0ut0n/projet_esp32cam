@@ -1,5 +1,3 @@
 .gitignore
-demo/test_server_udp_python/envoi/loading_cat.jpg
 demo/test_server_udp_python/reception/cam.jpg
-demo-opti/archives.md
-tests
+exemples
