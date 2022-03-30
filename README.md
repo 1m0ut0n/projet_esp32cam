@@ -45,6 +45,8 @@ La bibliothèque `EthernetSPI2.h` était en effet adaptée plusieurs shield Ethe
 Dans `demo-opti` le fichier `demo-opti.ino` correspond donc à la quatrième demo.
 Elle utilise les bibliothèques customs `EthernetUDP.h` et `w5500HSPI.h` qui remplacent donc l'ancienne bibliothèque Ethernet.
 
+> Il faut copier les bibliothèques, soit les fichiers `w5500HSPI.h`, `w5500HSPI.cpp`, `EthernetUDP.h` et `EthernetUDP.cpp` dans le dossier `demo-opti` pour que la compilation puisse se faire
+
 
 ### Demo Protocole
 
@@ -54,6 +56,8 @@ Il a donc aussi nécéssité un nouveau serveur.
 Dans `demo-protocole` le fichier `demo-protocole.ino` correspond donc à la cinquième demo.
 Elle communique avec le second serveur linux situé dans `serveurs` et utilise un nouveau protocole de communication.
 Elle utilise aussi les mêmes bibliothèques que la demo précédente.
+
+> Il faut copier les bibliothèques, soit les fichiers `w5500HSPI.h`, `w5500HSPI.cpp`, `EthernetUDP.h` et `EthernetUDP.cpp` dans le dossier `demo-protocole` pour que la compilation puisse se faire
 
 
 
@@ -77,6 +81,8 @@ Dans le même dossier, les protocoles sont expliqués dans les fichiers `protoco
 
 > Nécessite l'installation d'OpenCV ([tuto](https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html))
 
+> Necessite la creation d'un dossier `reception` pour que l'image puisse s'enregistrer
+
 
 ### Serveur Protocole
 
@@ -84,6 +90,8 @@ Second serveur linux à utiliser avec la demo 5 (nouveau protocole). Ce serveur 
 Dans le même dossier, les protocoles sont expliqués dans les fichiers `protocole-esp.md` pour le côté client et `protocole-serveur.md` pour le côté serveur.
 
 > Nécessite l'installation d'OpenCV ([tuto](https://docs.opencv.org/4.x/d7/d9f/tutorial_linux_install.html))
+
+> Necessite la creation d'un dossier `reception` pour que l'image puisse s'enregistrer
 
 
 
@@ -103,7 +111,7 @@ Par contre, elle sont plus rapides et économes que la tradituionelle bibliothè
 
 ### Serveur/Client Python
 
-Serveur et Client de test en Python pour la toute première demo. 
+Serveur et Client de test en Python pour la toute première demo.
 
 
 ### Tests Demo Opti
