@@ -1,3 +1,5 @@
 .gitignore
 demo/test_server_udp_python/reception/cam.jpg
 exemples
+demo-*/*.cpp
+demo-*/*.h
