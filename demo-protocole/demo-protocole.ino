@@ -38,8 +38,8 @@ const uint16_t udpPort = 44444;
 // Taille max des paquets entrants
 #define BUFFER_LEN 32
 // Temps avant timeout (en millisecondes)
-#define TIMEOUT 5000
-// Nombre de fois avant abandon d'un l'envoi (pas encore mit en place)
+#define TIMEOUT 1000
+// Nombre de fois avant abandon d'un l'envoi
 #define ABANDON 5
 // Temps à attendre en cas de reponse négative ou timeout avant le réenvoi
 // d'un paquet
@@ -88,7 +88,7 @@ uint8_t bufferReception[BUFFER_LEN];
 // Taille de la donnée dans un paquet
 const size_t tailleData = DATA_MAX - ENTETE_LEN;
 // Classe UDP
-UDPClass udp(1); // Sur le socket 0
+UDPClass udp; // Sur le socket premier socket libre
 
 // Setup
 void setup(){
@@ -151,7 +151,7 @@ void setup(){
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
     #ifdef INFO
-    Serial.print("L'initialisation de la caméra à ratée : Erreur 0X");
+    Serial.print("L'initialisation de la caméra à ratée : Erreur 0x");
     Serial.println(err, HEX);
     #endif
     redemmarage();
@@ -296,8 +296,9 @@ int bailDHCP() {
     case 3:
       //rebind fail
       #ifdef INFO
-      Serial.println("Erreur: Echec du rebind du bail DHCP.");
+      Serial.println("Erreur: Echec du rebind du bail DHCP. L'ESP va redemmarer.");
       #endif
+      redemmarage();
     return 0;
 
     case 4:
